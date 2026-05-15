@@ -14,7 +14,9 @@ export default function PlatformLoginPage() {
             <LoginForm />
           </div>
           <p className="mt-4 text-xs text-stone-500">
-            Forgot your password? Contact an administrator — password reset is admin-only.
+            <Link href="/auth/forgot-password" className="underline">
+              Forgot password?
+            </Link>
           </p>
         </div>
         <div className="flex flex-col gap-4">

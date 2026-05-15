@@ -13,6 +13,7 @@ export default async function ClientDashboardPage() {
   const token = await readSessionToken("CLIENT");
   const session = await getSession(token);
   if (!session || session.userType !== "CLIENT") redirect("/auth/login");
+  if (session.scope === "MUST_CHANGE_PASSWORD") redirect("/auth/change-password");
   const client = await prisma.client.findUnique({ where: { id: session.userId } });
   const tenant = await prisma.tenant.findUnique({ where: { slug: ctx.slug } });
   if (!client || !tenant) redirect("/auth/login");

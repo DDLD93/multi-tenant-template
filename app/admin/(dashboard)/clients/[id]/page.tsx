@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { prisma } from "@/lib/db/client";
 import { resolveHost } from "@/lib/auth/context";
 import { PageHeader, Card } from "@/components/shell";
+import { ClientResetPasswordAction } from "./reset-action";
 
 export default async function ClientDetailPage({
   params,
@@ -39,6 +40,7 @@ export default async function ClientDetailPage({
           <dt className="text-stone-500">Last login</dt>
           <dd>{client.lastLoginAt?.toISOString() ?? "—"}</dd>
         </dl>
+        <ClientResetPasswordAction clientId={client.id} />
       </Card>
     </div>
   );

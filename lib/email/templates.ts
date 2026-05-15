@@ -59,3 +59,14 @@ export function clientRegistrationEmail(input: { tenantName: string; link: strin
   `;
   return shell(`Complete your registration`, body);
 }
+
+export function passwordResetEmail(input: { name?: string | null; resetUrl: string }): string {
+  const greeting = input.name ? `Hi ${escape(input.name)},` : "Hi,";
+  const body = `
+    <p>${greeting}</p>
+    <p>We received a request to reset your password. Use the link below. It expires in one hour.</p>
+    <p><a href="${escape(input.resetUrl)}">${escape(input.resetUrl)}</a></p>
+    <p>If you did not request this, you can ignore this email.</p>
+  `;
+  return shell(`Reset your password`, body);
+}

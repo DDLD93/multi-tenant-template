@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { AdminLoginForm } from "./form";
 
 export default function AdminLoginPage() {
@@ -10,7 +11,9 @@ export default function AdminLoginPage() {
           <AdminLoginForm />
         </div>
         <p className="mt-4 text-xs text-stone-500">
-          Forgot your password? Contact your workspace owner — password reset is admin-only.
+          <Link href="/admin/auth/forgot-password" className="underline">
+            Forgot password?
+          </Link>
         </p>
       </div>
     </main>

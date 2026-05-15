@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db/client";
 import type { ActorType } from "@/lib/generated/prisma/enums";
+import type { Prisma } from "@/lib/generated/prisma/client";
 
 export type AuditInput = {
   actorType: ActorType;
@@ -23,8 +24,8 @@ export async function audit(input: AuditInput): Promise<void> {
       tenantId: input.tenantId,
       targetType: input.targetType ?? null,
       targetId: input.targetId ?? null,
-      beforeJson: input.before === undefined ? null : (input.before as object),
-      afterJson: input.after === undefined ? null : (input.after as object),
+      beforeJson: input.before !== undefined ? (input.before as Prisma.InputJsonValue) : undefined,
+      afterJson: input.after !== undefined ? (input.after as Prisma.InputJsonValue) : undefined,
       ip: input.ip ?? null,
       userAgent: input.userAgent ?? null,
     },
