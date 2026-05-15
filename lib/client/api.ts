@@ -21,7 +21,11 @@ async function ensureCsrf(): Promise<string> {
 
 type ApiResponse<T> = { data: T | null; error: { code: string; message: string } | null };
 
-export async function apiPost<T>(url: string, body: unknown): Promise<ApiResponse<T>> {
+export async function apiPost<T>(
+  url: string,
+  body: unknown,
+  init?: { headers?: Record<string, string> }
+): Promise<ApiResponse<T>> {
   const token = await ensureCsrf();
   const res = await fetch(url, {
     method: "POST",
@@ -29,13 +33,18 @@ export async function apiPost<T>(url: string, body: unknown): Promise<ApiRespons
     headers: {
       "Content-Type": "application/json",
       [CSRF_HEADER]: token,
+      ...init?.headers,
     },
     body: JSON.stringify(body),
   });
   return (await res.json()) as ApiResponse<T>;
 }
 
-export async function apiPatch<T>(url: string, body: unknown): Promise<ApiResponse<T>> {
+export async function apiPatch<T>(
+  url: string,
+  body: unknown,
+  init?: { headers?: Record<string, string> }
+): Promise<ApiResponse<T>> {
   const token = await ensureCsrf();
   const res = await fetch(url, {
     method: "PATCH",
@@ -43,6 +52,7 @@ export async function apiPatch<T>(url: string, body: unknown): Promise<ApiRespon
     headers: {
       "Content-Type": "application/json",
       [CSRF_HEADER]: token,
+      ...init?.headers,
     },
     body: JSON.stringify(body),
   });

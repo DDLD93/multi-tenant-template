@@ -44,6 +44,7 @@ export default async function AdminDashboardLayout({ children }: { children: Rea
       userLabel={label}
       logoutEndpoint="/api/auth/logout"
       logoutRedirect="/admin/auth/login"
+      logoutContext="tenant-admin"
     >
       {children}
     </AppShell>

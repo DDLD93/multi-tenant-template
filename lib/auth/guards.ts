@@ -79,6 +79,9 @@ export async function requireClientActor(): Promise<ClientActor> {
   if (!session || session.userType !== "CLIENT" || !session.tenantId) {
     throw new AuthError(401, "Authentication required.");
   }
+  if (session.scope !== "FULL") {
+    throw new AuthError(401, "Must complete password change.");
+  }
   const client = await prisma.client.findUnique({ where: { id: session.userId } });
   if (!client || client.status !== "ACTIVE" || client.tenantId !== session.tenantId) {
     throw new AuthError(401, "Client not found or inactive.");

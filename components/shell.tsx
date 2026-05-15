@@ -10,6 +10,7 @@ export function AppShell({
   userLabel,
   logoutEndpoint,
   logoutRedirect,
+  logoutContext = "client",
   children,
 }: {
   title: string;
@@ -17,6 +18,7 @@ export function AppShell({
   userLabel: string;
   logoutEndpoint: string;
   logoutRedirect: string;
+  logoutContext?: "platform" | "tenant-admin" | "client";
   children: ReactNode;
 }) {
   return (
@@ -38,7 +40,11 @@ export function AppShell({
           ))}
         </nav>
         <div className="mt-8">
-          <LogoutButton endpoint={logoutEndpoint} postLogoutPath={logoutRedirect} />
+          <LogoutButton
+            endpoint={logoutEndpoint}
+            postLogoutPath={logoutRedirect}
+            logoutContext={logoutContext}
+          />
         </div>
       </aside>
       <main className="flex-1 p-8">{children}</main>

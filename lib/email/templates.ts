@@ -50,3 +50,12 @@ export function otpEmail(input: { code: string; tenantName: string }): string {
   `;
   return shell(`Your sign-in code`, body);
 }
+
+export function clientRegistrationEmail(input: { tenantName: string; link: string }): string {
+  const body = `
+    <p>Complete your registration for <strong>${escape(input.tenantName)}</strong>:</p>
+    <p><a href="${escape(input.link)}">${escape(input.link)}</a></p>
+    <p>This link expires in 24 hours. If you did not request it, you can ignore this email.</p>
+  `;
+  return shell(`Complete your registration`, body);
+}

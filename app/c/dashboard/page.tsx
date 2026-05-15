@@ -21,7 +21,13 @@ export default async function ClientDashboardPage() {
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 p-8">
       <PageHeader
         title={`Welcome to ${tenant.name}`}
-        action={<LogoutButton endpoint="/api/auth/logout" postLogoutPath="/auth/login" />}
+        action={
+          <LogoutButton
+            endpoint="/api/auth/logout"
+            postLogoutPath="/auth/login"
+            logoutContext="client"
+          />
+        }
       />
       <Card>
         <div className="text-xs uppercase text-stone-500">Signed in as</div>

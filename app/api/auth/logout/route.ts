@@ -11,8 +11,8 @@ export async function POST(request: Request) {
     await requireCsrf(request);
     const h = await headers();
     const ctx = resolveHost(h.get("host"));
-    const url = new URL(request.url);
-    const isAdmin = url.pathname.startsWith("/admin") || h.get("x-app-mode") === "tenant-admin";
+    const logoutCtx = h.get("x-logout-context");
+    const isAdmin = logoutCtx === "tenant-admin";
 
     let cookieName: string;
     if (ctx.mode === "platform") {

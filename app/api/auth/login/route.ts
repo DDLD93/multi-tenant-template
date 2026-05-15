@@ -15,16 +15,19 @@ import { ok } from "@/lib/api/respond";
 import { handleError, DomainError } from "@/lib/api/errors";
 import { requireCsrf } from "@/lib/api/csrf-guard";
 
+import { clientProfileIncomplete } from "@/lib/auth/client-profile";
+
 const Body = z.object({
   email: z.email(),
   password: z.string().min(1),
+  surface: z.enum(["tenant_admin", "tenant_client"]).optional(),
 });
 
 export async function POST(request: Request) {
   try {
     await requireCsrf(request);
     const json = await request.json();
-    const { email, password } = Body.parse(json);
+    const { email, password, surface } = Body.parse(json);
     const meta = requestMeta(request);
 
     const h = await headers();
@@ -36,7 +39,12 @@ export async function POST(request: Request) {
       return ok(result);
     }
     if (ctx.mode === "tenant") {
-      const result = await loginTenant(ctx.slug, email, password, meta);
+      const resolvedSurface = surface ?? "tenant_admin";
+      if (resolvedSurface === "tenant_admin") {
+        const result = await loginTenant(ctx.slug, email, password, meta);
+        return ok(result);
+      }
+      const result = await loginClient(ctx.slug, email, password, meta);
       return ok(result);
     }
     throw new DomainError(404, "not_found", "Unknown context.");
@@ -153,4 +161,84 @@ async function loginTenant(slug: string, email: string, password: string, meta: 
     userAgent: meta.userAgent,
   });
   return { mustChangePassword: user.mustChangePassword, redirect: user.mustChangePassword ? "/admin/auth/change-password" : "/admin/dashboard" };
+}
+
+async function loginClient(
+  slug: string,
+  email: string,
+  password: string,
+  meta: { ip: string | null; userAgent: string | null }
+) {
+  const tenant = await prisma.tenant.findUnique({ where: { slug } });
+  if (!tenant) throw new DomainError(404, "not_found", "Unknown tenant.");
+  if (tenant.status !== "ACTIVE") throw new DomainError(403, "tenant_blocked", "Tenant is not active.");
+
+  const normalized = email.toLowerCase();
+  const identifier = `${slug}:${normalized}`;
+
+  const user = await prisma.client.findUnique({
+    where: { tenantId_email: { tenantId: tenant.id, email: normalized } },
+  });
+  if (!user || user.status !== "ACTIVE") {
+    await recordLoginAttempt(identifier, "tenant-client", false, meta.ip);
+    throw new DomainError(401, "invalid_credentials", "Invalid credentials.");
+  }
+  if (!user.passwordHash) {
+    await recordLoginAttempt(identifier, "tenant-client", false, meta.ip);
+    throw new DomainError(
+      401,
+      "no_password",
+      "No password on file. Use “Forgot password”, complete registration from your email link, or ask an administrator to send a reset."
+    );
+  }
+  if (isLocked(user.lockedUntil)) {
+    throw new DomainError(429, "locked", "Account is temporarily locked.");
+  }
+  const okPw = await verifyPassword(user.passwordHash, password);
+  await recordLoginAttempt(identifier, "tenant-client", okPw, meta.ip);
+
+  if (!okPw) {
+    const lock = await shouldLockAccount(identifier, "tenant-client");
+    await prisma.client.update({
+      where: { id: user.id },
+      data: {
+        failedLoginAttempts: { increment: 1 },
+        lockedUntil: lock ? computeLockoutUntil() : user.lockedUntil,
+      },
+    });
+    throw new DomainError(401, "invalid_credentials", "Invalid credentials.");
+  }
+
+  await prisma.client.update({
+    where: { id: user.id },
+    data: { failedLoginAttempts: 0, lockedUntil: null, lastLoginAt: new Date() },
+  });
+
+  const scope = user.mustChangePassword ? "MUST_CHANGE_PASSWORD" : "FULL";
+  await createSession({
+    userId: user.id,
+    userType: "CLIENT",
+    tenantId: tenant.id,
+    scope,
+    ip: meta.ip,
+    userAgent: meta.userAgent,
+  });
+  await audit({
+    actorType: "CLIENT",
+    actorId: user.id,
+    action: "auth.client_login",
+    tenantId: tenant.id,
+    targetType: "Client",
+    targetId: user.id,
+    ip: meta.ip,
+    userAgent: meta.userAgent,
+  });
+
+  const profileIncomplete = clientProfileIncomplete(user.profileJson);
+  const redirect = user.mustChangePassword
+    ? "/auth/change-password"
+    : profileIncomplete
+      ? "/profile"
+      : "/dashboard";
+  return { mustChangePassword: user.mustChangePassword, redirect };
 }

@@ -26,7 +26,14 @@ export default async function PlatformDashboardLayout({ children }: { children: 
   const label = `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim() || user.email;
 
   return (
-    <AppShell title="Platform" nav={NAV} userLabel={label} logoutEndpoint="/api/auth/logout">
+    <AppShell
+      title="Platform"
+      nav={NAV}
+      userLabel={label}
+      logoutEndpoint="/api/auth/logout"
+      logoutRedirect="/auth/login"
+      logoutContext="platform"
+    >
       {children}
     </AppShell>
   );
