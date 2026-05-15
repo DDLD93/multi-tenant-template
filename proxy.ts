@@ -2,9 +2,27 @@ import { NextResponse, type NextRequest } from "next/server";
 import { resolveHost } from "@/lib/auth/context";
 import { COOKIE_NAMES } from "@/lib/auth/session";
 
-const PUBLIC_PLATFORM = ["/auth/login", "/auth/change-password", "/auth/register"];
-const PUBLIC_ADMIN = ["/admin/auth/login", "/admin/auth/change-password"];
-const PUBLIC_CLIENT = ["/auth/login", "/auth/verify"];
+const PUBLIC_PLATFORM = [
+  "/auth/login",
+  "/auth/change-password",
+  "/auth/register",
+  "/auth/forgot-password",
+  "/auth/reset-password",
+];
+const PUBLIC_ADMIN = [
+  "/admin/auth/login",
+  "/admin/auth/change-password",
+  "/admin/auth/forgot-password",
+  "/admin/auth/reset-password",
+];
+const PUBLIC_CLIENT = [
+  "/auth/login",
+  "/auth/register",
+  "/auth/register/complete",
+  "/auth/forgot-password",
+  "/auth/reset-password",
+  "/auth/change-password",
+];
 
 function inList(path: string, list: string[]): boolean {
   return list.some((p) => path === p || path.startsWith(`${p}/`));
