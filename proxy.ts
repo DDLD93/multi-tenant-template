@@ -18,7 +18,6 @@ const PUBLIC_ADMIN = [
 const PUBLIC_CLIENT = [
   "/auth/login",
   "/auth/register",
-  "/auth/register/complete",
   "/auth/forgot-password",
   "/auth/reset-password",
   "/auth/change-password",

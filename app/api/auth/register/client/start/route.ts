@@ -2,22 +2,34 @@ import { z } from "zod";
 import { headers } from "next/headers";
 import { prisma } from "@/lib/db/client";
 import { resolveHost } from "@/lib/auth/context";
-import { hashOpaqueToken, newOpaqueToken } from "@/lib/auth/tokens";
-import { sendEmail } from "@/lib/email/send";
-import { clientRegistrationEmail } from "@/lib/email/templates";
-import { tenantHttpOrigin } from "@/lib/url/tenant";
+import { hashPassword, validatePolicy } from "@/lib/auth/password";
+import { issueOtp } from "@/lib/auth/otp";
 import { ok } from "@/lib/api/respond";
 import { handleError, DomainError } from "@/lib/api/errors";
 import { requireCsrf } from "@/lib/api/csrf-guard";
 
-const Body = z.object({ email: z.email() });
+const Body = z
+  .object({
+    email: z.email(),
+    password: z.string().min(12),
+    confirm: z.string().min(12),
+    displayName: z.string().min(1).max(200),
+    firstName: z.string().max(100).optional(),
+    lastName: z.string().max(100).optional(),
+    otherName: z.string().max(100).optional(),
+    phone: z.string().max(40).optional(),
+  })
+  .refine((v) => v.password === v.confirm, {
+    path: ["confirm"],
+    message: "Passwords do not match.",
+  });
 
-const REG_TTL_MS = 1000 * 60 * 60 * 24;
+const PENDING_TTL_MS = 1000 * 60 * 60 * 24;
 
 export async function POST(request: Request) {
   try {
     await requireCsrf(request);
-    const { email } = Body.parse(await request.json());
+    const body = Body.parse(await request.json());
     const h = await headers();
     const ctx = resolveHost(h.get("host"));
     if (ctx.mode !== "tenant") {
@@ -27,32 +39,58 @@ export async function POST(request: Request) {
     if (!tenant || tenant.status !== "ACTIVE") {
       throw new DomainError(403, "tenant_blocked", "Workspace is not available.");
     }
-    const normalized = email.toLowerCase();
+
+    const policy = validatePolicy(body.password);
+    if (!policy.ok) throw new DomainError(400, "weak_password", policy.reason);
+
+    const normalized = body.email.toLowerCase();
     const existing = await prisma.client.findUnique({
       where: { tenantId_email: { tenantId: tenant.id, email: normalized } },
     });
     if (existing) {
-      return ok({ sent: true });
+      throw new DomainError(409, "email_taken", "An account with this email already exists. Sign in instead.");
     }
 
-    const raw = newOpaqueToken();
-    const tokenHash = hashOpaqueToken(raw);
-    const expiresAt = new Date(Date.now() + REG_TTL_MS);
+    const passwordHash = await hashPassword(body.password);
+    const profileJson = { name: body.displayName.trim() };
+    const expiresAt = new Date(Date.now() + PENDING_TTL_MS);
 
-    await prisma.clientRegistrationToken.deleteMany({
-      where: { tenantId: tenant.id, email: normalized, consumedAt: null },
-    });
-    await prisma.clientRegistrationToken.create({
-      data: { tokenHash, tenantId: tenant.id, email: normalized, expiresAt },
+    await prisma.pendingClientRegistration.upsert({
+      where: { tenantId_email: { tenantId: tenant.id, email: normalized } },
+      create: {
+        tenantId: tenant.id,
+        email: normalized,
+        passwordHash,
+        firstName: body.firstName?.trim() || null,
+        lastName: body.lastName?.trim() || null,
+        otherName: body.otherName?.trim() || null,
+        phone: body.phone?.trim() || null,
+        profileJson,
+        expiresAt,
+      },
+      update: {
+        passwordHash,
+        firstName: body.firstName?.trim() || null,
+        lastName: body.lastName?.trim() || null,
+        otherName: body.otherName?.trim() || null,
+        phone: body.phone?.trim() || null,
+        profileJson,
+        expiresAt,
+      },
     });
 
-    const link = `${tenantHttpOrigin(tenant.slug)}/auth/register/complete?token=${encodeURIComponent(raw)}`;
-    await sendEmail({
-      to: normalized,
-      subject: `Complete registration — ${tenant.name}`,
-      html: clientRegistrationEmail({ tenantName: tenant.name, link }),
+    const otp = await issueOtp({
+      identifier: normalized,
+      purpose: "CLIENT_SIGNUP",
+      tenantId: tenant.id,
+      tenantName: tenant.name,
+      emailVariant: "registration",
     });
-    return ok({ sent: true });
+    if (!otp.sent) {
+      throw new DomainError(429, "rate_limited", "Too many verification codes. Try again later.");
+    }
+
+    return ok({ step: "otp" as const });
   } catch (e) {
     return handleError(e);
   }

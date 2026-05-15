@@ -19,6 +19,7 @@ export async function issueOtp(input: {
   purpose: OtpPurpose;
   tenantId: string | null;
   tenantName: string;
+  emailVariant?: "signin" | "registration";
 }): Promise<{ sent: true } | { sent: false; reason: "rate_limited" }> {
   const since = new Date(Date.now() - RATE_WINDOW_MS);
   const recent = await prisma.otpRequest.count({
@@ -39,8 +40,15 @@ export async function issueOtp(input: {
   });
   await sendEmail({
     to: input.identifier,
-    subject: `Your sign-in code for ${input.tenantName}`,
-    html: otpEmail({ code, tenantName: input.tenantName }),
+    subject:
+      input.emailVariant === "registration"
+        ? `Verify your email — ${input.tenantName}`
+        : `Your sign-in code for ${input.tenantName}`,
+    html: otpEmail({
+      code,
+      tenantName: input.tenantName,
+      variant: input.emailVariant,
+    }),
   });
   return { sent: true };
 }

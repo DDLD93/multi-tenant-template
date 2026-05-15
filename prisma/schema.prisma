@@ -74,6 +74,7 @@ model Tenant {
 
   users         TenantUser[]
   clients       Client[]
+  pendingClientRegistrations PendingClientRegistration[]
   roleTemplates RoleTemplate[]
   templates     Template[]
   activityLogs  ActivityLog[]
@@ -157,16 +158,23 @@ model PasswordResetToken {
   @@index([expiresAt])
 }
 
-model ClientRegistrationToken {
-  id         String    @id @default(cuid())
-  tokenHash  String    @unique
-  tenantId   String
-  email      String
-  expiresAt  DateTime
-  consumedAt DateTime?
-  createdAt  DateTime  @default(now())
+/// In-flight client self-signup: created after form+password, deleted after OTP verifies.
+model PendingClientRegistration {
+  id           String   @id @default(cuid())
+  tenantId     String
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  email        String
+  passwordHash String
+  firstName    String?
+  lastName     String?
+  otherName    String?
+  phone        String?
+  profileJson  Json     @default("{}")
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
 
-  @@index([tenantId, email])
+  @@unique([tenantId, email])
+  @@index([tenantId])
 }
 
 model RoleTemplate {

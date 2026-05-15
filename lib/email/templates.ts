@@ -42,22 +42,21 @@ export function tempPasswordEmail(input: { name?: string | null; loginUrl: strin
   return shell(`Your password was reset`, body);
 }
 
-export function otpEmail(input: { code: string; tenantName: string }): string {
+export function otpEmail(input: {
+  code: string;
+  tenantName: string;
+  variant?: "signin" | "registration";
+}): string {
+  const isReg = input.variant === "registration";
+  const intro = isReg
+    ? `<p>Your verification code to finish creating your account at <strong>${escape(input.tenantName)}</strong>:</p>`
+    : `<p>Your one-time sign-in code for <strong>${escape(input.tenantName)}</strong>:</p>`;
   const body = `
-    <p>Your one-time sign-in code for <strong>${escape(input.tenantName)}</strong>:</p>
+    ${intro}
     <p style="font-size:28px;font-weight:600;letter-spacing:4px;font-family:monospace;background:#f5f5f4;padding:12px;border-radius:6px;text-align:center;">${escape(input.code)}</p>
     <p>This code expires in 5 minutes. If you did not request it, you can ignore this email.</p>
   `;
-  return shell(`Your sign-in code`, body);
-}
-
-export function clientRegistrationEmail(input: { tenantName: string; link: string }): string {
-  const body = `
-    <p>Complete your registration for <strong>${escape(input.tenantName)}</strong>:</p>
-    <p><a href="${escape(input.link)}">${escape(input.link)}</a></p>
-    <p>This link expires in 24 hours. If you did not request it, you can ignore this email.</p>
-  `;
-  return shell(`Complete your registration`, body);
+  return shell(isReg ? "Verify your email" : "Your sign-in code", body);
 }
 
 export function passwordResetEmail(input: { name?: string | null; resetUrl: string }): string {
