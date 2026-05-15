@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find *)",
+      "Bash(xargs grep -l \"middleware\")",
+      "Bash(xargs grep -l \"^title.*[Mm]iddle\")",
+      "Bash(npm install *)",
+      "Bash(npm run *)",
+      "Bash(npx prisma *)",
+      "Bash(npx tsx *)",
+      "PowerShell(Move-Item *)"
+    ]
+  }
+}
