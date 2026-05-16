@@ -10,6 +10,8 @@ import { clientProfileIncomplete } from "@/lib/auth/client-profile";
 import { ok } from "@/lib/api/respond";
 import { handleError, DomainError } from "@/lib/api/errors";
 import { requireCsrf } from "@/lib/api/csrf-guard";
+import { enterContext } from "@/lib/db/tenant-context";
+import { enforceRateLimit, RATE_PRESETS } from "@/lib/auth/rate-limit";
 import type { Prisma } from "@/lib/generated/prisma/client";
 
 const Body = z.object({
@@ -22,6 +24,7 @@ export async function POST(request: Request) {
     await requireCsrf(request);
     const { email, code } = Body.parse(await request.json());
     const meta = requestMeta(request);
+    await enforceRateLimit(RATE_PRESETS.REGISTER, [meta.ip, email.toLowerCase()]);
     const h = await headers();
     const ctx = resolveHost(h.get("host"));
     if (ctx.mode !== "tenant") {
@@ -32,6 +35,7 @@ export async function POST(request: Request) {
     if (!tenant || tenant.status !== "ACTIVE") {
       throw new DomainError(403, "tenant_blocked", "Workspace is not active.");
     }
+    enterContext({ mode: "tenant-client", tenantId: tenant.id });
 
     const normalized = email.toLowerCase();
     const otpResult = await verifyOtp({

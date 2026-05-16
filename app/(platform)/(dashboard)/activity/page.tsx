@@ -1,8 +1,10 @@
 import { prisma } from "@/lib/db/client";
+import { bindPlatformPageContext } from "@/lib/db/page-context";
 import { PageHeader } from "@/components/shell";
 import { ActivityTable } from "./table";
 
 export default async function PlatformActivityPage() {
+  bindPlatformPageContext();
   const rows = await prisma.activityLog.findMany({
     orderBy: { createdAt: "desc" },
     take: 200,

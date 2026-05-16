@@ -13,6 +13,15 @@ export function runWithContext<T>(ctx: RequestContext, fn: () => Promise<T> | T)
   return storage.run(ctx, fn);
 }
 
+/**
+ * Bind `ctx` for the remainder of the current async execution (and all
+ * following awaited calls) without a callback. Used by auth guards / page
+ * loaders so the Prisma tenant-scope guard covers the whole request handler.
+ */
+export function enterContext(ctx: RequestContext): void {
+  storage.enterWith(ctx);
+}
+
 export function getContext(): RequestContext | undefined {
   return storage.getStore();
 }

@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db/client";
+import { bindPlatformPageContext } from "@/lib/db/page-context";
 import { PageHeader, Card } from "@/components/shell";
 import { ALL_PLATFORM_PERMISSION_KEYS } from "@/lib/auth/permissions";
 import { UserDetailActions } from "./actions";
@@ -9,6 +10,7 @@ export default async function PlatformUserDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  bindPlatformPageContext();
   const { id } = await params;
   const [user, roles] = await Promise.all([
     prisma.platformUser.findUnique({ where: { id } }),

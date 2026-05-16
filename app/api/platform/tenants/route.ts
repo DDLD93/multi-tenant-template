@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { prisma } from "@/lib/db/client";
 import { requirePlatformActor, PERMISSIONS } from "@/lib/auth/guards";
+import { runWithContext } from "@/lib/db/tenant-context";
 import { isValidSlug, RESERVED_SLUGS } from "@/lib/auth/context";
 import { TENANT_BUILTIN_ROLES, ALL_TENANT_PERMISSION_KEYS } from "@/lib/auth/permissions";
 import { hashPassword, generateTempPassword, recordPassword } from "@/lib/auth/password";
@@ -91,6 +92,11 @@ export async function POST(request: Request) {
           country: body.country ?? null,
         },
       });
+      // Owner/roles/log belong to the new tenant — bind scope to it so the
+      // Prisma guard permits these strict-scoped writes from platform context.
+      return runWithContext(
+        { mode: "tenant-admin", tenantId: tenant.id },
+        async () => {
       for (const r of TENANT_BUILTIN_ROLES) {
         await tx.roleTemplate.create({
           data: {
@@ -131,6 +137,8 @@ export async function POST(request: Request) {
         },
       });
       return { tenant, owner };
+        }
+      );
     });
 
     await recordPassword("TENANT", created.owner.id, passwordHash);

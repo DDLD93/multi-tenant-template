@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { prisma } from "@/lib/db/client";
 import { getSession, readSessionToken } from "@/lib/auth/session";
 import { resolveHost } from "@/lib/auth/context";
+import { enterContext } from "@/lib/db/tenant-context";
 import { clientProfileIncomplete } from "@/lib/auth/client-profile";
 import { PageHeader, Card } from "@/components/shell";
 import { ClientProfileForm } from "./profile-form";
@@ -15,6 +16,7 @@ export default async function ClientProfilePage() {
   const session = await getSession(token);
   if (!session || session.userType !== "CLIENT") redirect("/auth/login");
   if (session.scope === "MUST_CHANGE_PASSWORD") redirect("/auth/change-password");
+  enterContext({ mode: "tenant-client", tenantId: session.tenantId });
   const client = await prisma.client.findUnique({ where: { id: session.userId } });
   if (!client) redirect("/auth/login");
 

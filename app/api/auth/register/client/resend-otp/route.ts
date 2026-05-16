@@ -6,6 +6,8 @@ import { issueOtp } from "@/lib/auth/otp";
 import { ok } from "@/lib/api/respond";
 import { handleError, DomainError } from "@/lib/api/errors";
 import { requireCsrf } from "@/lib/api/csrf-guard";
+import { enterContext } from "@/lib/db/tenant-context";
+import { enforceRateLimit, RATE_PRESETS } from "@/lib/auth/rate-limit";
 
 const Body = z.object({ email: z.email() });
 
@@ -13,6 +15,7 @@ export async function POST(request: Request) {
   try {
     await requireCsrf(request);
     const { email } = Body.parse(await request.json());
+    await enforceRateLimit(RATE_PRESETS.OTP_REQUEST, [email.toLowerCase()]);
     const h = await headers();
     const ctx = resolveHost(h.get("host"));
     if (ctx.mode !== "tenant") {
@@ -22,6 +25,7 @@ export async function POST(request: Request) {
     if (!tenant || tenant.status !== "ACTIVE") {
       return ok({ sent: true });
     }
+    enterContext({ mode: "tenant-client", tenantId: tenant.id });
 
     const normalized = email.toLowerCase();
     const pending = await prisma.pendingClientRegistration.findUnique({

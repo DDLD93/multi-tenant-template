@@ -7,6 +7,8 @@ import { issueOtp } from "@/lib/auth/otp";
 import { ok } from "@/lib/api/respond";
 import { handleError, DomainError } from "@/lib/api/errors";
 import { requireCsrf } from "@/lib/api/csrf-guard";
+import { enterContext } from "@/lib/db/tenant-context";
+import { enforceRateLimit, RATE_PRESETS } from "@/lib/auth/rate-limit";
 
 const Body = z
   .object({
@@ -30,6 +32,7 @@ export async function POST(request: Request) {
   try {
     await requireCsrf(request);
     const body = Body.parse(await request.json());
+    await enforceRateLimit(RATE_PRESETS.REGISTER, [body.email.toLowerCase()]);
     const h = await headers();
     const ctx = resolveHost(h.get("host"));
     if (ctx.mode !== "tenant") {
@@ -39,6 +42,7 @@ export async function POST(request: Request) {
     if (!tenant || tenant.status !== "ACTIVE") {
       throw new DomainError(403, "tenant_blocked", "Workspace is not available.");
     }
+    enterContext({ mode: "tenant-client", tenantId: tenant.id });
 
     const policy = validatePolicy(body.password);
     if (!policy.ok) throw new DomainError(400, "weak_password", policy.reason);

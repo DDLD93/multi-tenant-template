@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { prisma } from "@/lib/db/client";
 import { requirePlatformActor, PERMISSIONS } from "@/lib/auth/guards";
+import { revokeAllSessionsForTenant } from "@/lib/auth/session";
 import { audit, requestMeta } from "@/lib/auth/audit";
 import { ok } from "@/lib/api/respond";
 import { handleError, DomainError } from "@/lib/api/errors";
@@ -30,6 +31,9 @@ export async function PATCH(request: Request, ctx: { params: Promise<{ id: strin
       where: { id },
       data: next,
     });
+    if (action === "suspend" || action === "archive") {
+      await revokeAllSessionsForTenant(id);
+    }
     await audit({
       actorType: "PLATFORM_USER",
       actorId: actor.userId,

@@ -1,8 +1,10 @@
 import { prisma } from "@/lib/db/client";
+import { bindPlatformPageContext } from "@/lib/db/page-context";
 import { DataTableToolbar } from "@/components/data-table-toolbar";
 import { RolesTable } from "./table";
 
 export default async function PlatformRolesPage() {
+  bindPlatformPageContext();
   const roles = await prisma.roleTemplate.findMany({
     where: { scope: "PLATFORM" },
     orderBy: [{ isSystem: "desc" }, { name: "asc" }],

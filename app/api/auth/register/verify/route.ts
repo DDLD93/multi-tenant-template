@@ -10,6 +10,8 @@ import { env } from "@/lib/env";
 import { ok } from "@/lib/api/respond";
 import { handleError, DomainError } from "@/lib/api/errors";
 import { requireCsrf } from "@/lib/api/csrf-guard";
+import { runWithContext } from "@/lib/db/tenant-context";
+import { enforceRateLimit, RATE_PRESETS } from "@/lib/auth/rate-limit";
 import { RegisterBody } from "../start/route";
 
 const QUARANTINE_DAYS = 90;
@@ -22,6 +24,7 @@ export async function POST(request: Request) {
   try {
     await requireCsrf(request);
     const body = VerifyBody.parse(await request.json());
+    await enforceRateLimit(RATE_PRESETS.REGISTER, [body.email.toLowerCase(), body.slug]);
 
     const policy = validatePolicy(body.password);
     if (!policy.ok) throw new DomainError(400, "weak_password", policy.reason);
@@ -68,6 +71,9 @@ export async function POST(request: Request) {
           country: body.country ?? null,
         },
       });
+      return runWithContext(
+        { mode: "tenant-admin", tenantId: tenant.id },
+        async () => {
       for (const r of TENANT_BUILTIN_ROLES) {
         await tx.roleTemplate.create({
           data: {
@@ -106,6 +112,8 @@ export async function POST(request: Request) {
         },
       });
       return { tenant, owner };
+        }
+      );
     });
 
     await recordPassword("TENANT", created.owner.id, passwordHash);

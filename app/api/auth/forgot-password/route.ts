@@ -11,7 +11,9 @@ import { displayName } from "@/lib/auth/display";
 import { ok } from "@/lib/api/respond";
 import { handleError, DomainError } from "@/lib/api/errors";
 import { requireCsrf } from "@/lib/api/csrf-guard";
+import { enterContext } from "@/lib/db/tenant-context";
 import { audit, requestMeta } from "@/lib/auth/audit";
+import { enforceRateLimit, RATE_PRESETS } from "@/lib/auth/rate-limit";
 import type { SessionUserType } from "@/lib/generated/prisma/enums";
 
 const Body = z.object({
@@ -64,10 +66,12 @@ export async function POST(request: Request) {
     await requireCsrf(request);
     const body = Body.parse(await request.json());
     const meta = requestMeta(request);
+    await enforceRateLimit(RATE_PRESETS.FORGOT_PASSWORD, [meta.ip, body.email.toLowerCase()]);
     const h = await headers();
     const ctx = resolveHost(h.get("host"));
 
     if (body.surface === "platform") {
+      enterContext({ mode: "platform", tenantId: null });
       if (ctx.mode !== "platform") {
         throw new DomainError(400, "bad_surface", "Use the main app domain for platform password reset.");
       }
@@ -105,6 +109,10 @@ export async function POST(request: Request) {
     if (!tenant || tenant.status !== "ACTIVE") {
       return ok({ sent: true });
     }
+    enterContext({
+      mode: body.surface === "tenant_client" ? "tenant-client" : "tenant-admin",
+      tenantId: tenant.id,
+    });
 
     if (body.surface === "tenant_admin") {
       const user = await prisma.tenantUser.findUnique({

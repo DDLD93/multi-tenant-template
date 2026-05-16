@@ -113,6 +113,22 @@ export async function revokeAllSessionsForUser(
   });
 }
 
+/**
+ * Revoke all tenant + client sessions for a tenant. Called when a tenant is
+ * suspended/archived so live sessions stop working immediately (PRD §13).
+ * `Session` is a global model, safe under the Prisma scope guard.
+ */
+export async function revokeAllSessionsForTenant(tenantId: string): Promise<void> {
+  await prisma.session.updateMany({
+    where: {
+      tenantId,
+      userType: { in: ["TENANT", "CLIENT"] },
+      revokedAt: null,
+    },
+    data: { revokedAt: new Date() },
+  });
+}
+
 export async function clearSessionCookie(userType: SessionUserType): Promise<void> {
   const jar = await cookies();
   const name = cookieNameFor(userType);

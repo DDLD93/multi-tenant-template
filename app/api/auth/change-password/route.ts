@@ -14,9 +14,11 @@ import {
   revokeAllSessionsForUser,
 } from "@/lib/auth/session";
 import { audit, requestMeta } from "@/lib/auth/audit";
+import { enforceRateLimit, RATE_PRESETS } from "@/lib/auth/rate-limit";
 import { ok } from "@/lib/api/respond";
 import { handleError, DomainError } from "@/lib/api/errors";
 import { requireCsrf } from "@/lib/api/csrf-guard";
+import { enterContext } from "@/lib/db/tenant-context";
 import { clientProfileIncomplete } from "@/lib/auth/client-profile";
 
 const Body = z.object({
@@ -38,6 +40,18 @@ export async function POST(request: Request) {
       (await getSession(tenantToken)) ??
       (await getSession(clientToken));
     if (!session) throw new DomainError(401, "unauthorized", "Authentication required.");
+
+    await enforceRateLimit(RATE_PRESETS.CHANGE_PASSWORD, [meta.ip, session.userId]);
+
+    enterContext({
+      mode:
+        session.userType === "PLATFORM"
+          ? "platform"
+          : session.userType === "TENANT"
+            ? "tenant-admin"
+            : "tenant-client",
+      tenantId: session.tenantId,
+    });
 
     const policy = validatePolicy(newPassword);
     if (!policy.ok) throw new DomainError(400, "weak_password", policy.reason);

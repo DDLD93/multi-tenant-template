@@ -8,7 +8,15 @@
       "Bash(npm run *)",
       "Bash(npx prisma *)",
       "Bash(npx tsx *)",
-      "PowerShell(Move-Item *)"
+      "PowerShell(Move-Item *)",
+      "Bash(xargs grep -l \"ReservedSlug\")",
+      "Bash(npx tsc *)",
+      "Bash(npx eslint *)",
+      "Bash(node -e \"const p=require\\('./package.json'\\);console.log\\(p.dependencies['@upstash/ratelimit'],p.dependencies['@upstash/redis']\\)\")",
+      "Bash(node -e \"const p=require\\('./package.json'\\);console.log\\(p.dependencies['@aws-sdk/client-s3'],p.dependencies['@aws-sdk/s3-request-presigner']\\)\")",
+      "Bash(node -e \"console.log\\(require\\('./package.json'\\).dependencies['next-intl']\\)\")",
+      "Bash(node -e \"const p=require\\('next-intl/package.json'\\);console.log\\('next-intl',p.version\\);console.log\\(Object.keys\\(p.exports||{}\\).join\\('\\\\n'\\)\\)\")",
+      "Bash(node -e \"const e=require\\('next-intl/package.json '.trim\\(\\)\\);\")"
     ]
   }
 }

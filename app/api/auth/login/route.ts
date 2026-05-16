@@ -8,9 +8,12 @@ import {
   shouldLockAccount,
   computeLockoutUntil,
   isLocked,
+  enforceRateLimit,
+  RATE_PRESETS,
 } from "@/lib/auth/rate-limit";
 import { audit, requestMeta } from "@/lib/auth/audit";
 import { resolveHost } from "@/lib/auth/context";
+import { enterContext } from "@/lib/db/tenant-context";
 import { ok } from "@/lib/api/respond";
 import { handleError, DomainError } from "@/lib/api/errors";
 import { requireCsrf } from "@/lib/api/csrf-guard";
@@ -29,12 +32,14 @@ export async function POST(request: Request) {
     const json = await request.json();
     const { email, password, surface } = Body.parse(json);
     const meta = requestMeta(request);
+    await enforceRateLimit(RATE_PRESETS.LOGIN, [meta.ip, email.toLowerCase()]);
 
     const h = await headers();
     const host = h.get("host");
     const ctx = resolveHost(host);
 
     if (ctx.mode === "platform") {
+      enterContext({ mode: "platform", tenantId: null });
       const result = await loginPlatform(email, password, meta);
       return ok(result);
     }
@@ -110,6 +115,7 @@ async function loginTenant(slug: string, email: string, password: string, meta: 
   const tenant = await prisma.tenant.findUnique({ where: { slug } });
   if (!tenant) throw new DomainError(404, "not_found", "Unknown tenant.");
   if (tenant.status !== "ACTIVE") throw new DomainError(403, "tenant_blocked", "Tenant is not active.");
+  enterContext({ mode: "tenant-admin", tenantId: tenant.id });
 
   const user = await prisma.tenantUser.findUnique({
     where: { tenantId_email: { tenantId: tenant.id, email: email.toLowerCase() } },
@@ -172,6 +178,7 @@ async function loginClient(
   const tenant = await prisma.tenant.findUnique({ where: { slug } });
   if (!tenant) throw new DomainError(404, "not_found", "Unknown tenant.");
   if (tenant.status !== "ACTIVE") throw new DomainError(403, "tenant_blocked", "Tenant is not active.");
+  enterContext({ mode: "tenant-client", tenantId: tenant.id });
 
   const normalized = email.toLowerCase();
   const identifier = `${slug}:${normalized}`;

@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { prisma } from "@/lib/db/client";
 import { getSession, readSessionToken } from "@/lib/auth/session";
 import { resolveHost } from "@/lib/auth/context";
+import { enterContext } from "@/lib/db/tenant-context";
 import { PageHeader, Card } from "@/components/shell";
 import { LogoutButton } from "@/components/logout-button";
 
@@ -14,6 +15,7 @@ export default async function ClientDashboardPage() {
   const session = await getSession(token);
   if (!session || session.userType !== "CLIENT") redirect("/auth/login");
   if (session.scope === "MUST_CHANGE_PASSWORD") redirect("/auth/change-password");
+  enterContext({ mode: "tenant-client", tenantId: session.tenantId });
   const client = await prisma.client.findUnique({ where: { id: session.userId } });
   const tenant = await prisma.tenant.findUnique({ where: { slug: ctx.slug } });
   if (!client || !tenant) redirect("/auth/login");

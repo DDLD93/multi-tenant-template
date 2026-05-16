@@ -9,6 +9,8 @@ import { audit, requestMeta } from "@/lib/auth/audit";
 import { ok } from "@/lib/api/respond";
 import { handleError, DomainError } from "@/lib/api/errors";
 import { requireCsrf } from "@/lib/api/csrf-guard";
+import { enterContext } from "@/lib/db/tenant-context";
+import { enforceRateLimit, RATE_PRESETS } from "@/lib/auth/rate-limit";
 
 const Body = z.object({
   token: z.string().min(10),
@@ -20,6 +22,7 @@ export async function POST(request: Request) {
     await requireCsrf(request);
     const { token, password } = Body.parse(await request.json());
     const meta = requestMeta(request);
+    await enforceRateLimit(RATE_PRESETS.RESET_PASSWORD, [meta.ip, token]);
     const policy = validatePolicy(password);
     if (!policy.ok) throw new DomainError(400, "weak_password", policy.reason);
 
@@ -34,6 +37,16 @@ export async function POST(request: Request) {
     const tenant = row.tenantId
       ? await prisma.tenant.findUnique({ where: { id: row.tenantId } })
       : null;
+
+    enterContext({
+      mode:
+        row.userType === "PLATFORM"
+          ? "platform"
+          : row.userType === "CLIENT"
+            ? "tenant-client"
+            : "tenant-admin",
+      tenantId: row.userType === "PLATFORM" ? null : row.tenantId,
+    });
 
     if (row.userType === "PLATFORM") {
       if (ctx.mode !== "platform") {

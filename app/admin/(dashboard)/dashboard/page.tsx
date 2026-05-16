@@ -1,6 +1,7 @@
 import { headers } from "next/headers";
 import { prisma } from "@/lib/db/client";
 import { resolveHost } from "@/lib/auth/context";
+import { enterContext } from "@/lib/db/tenant-context";
 import { PageHeader, Card } from "@/components/shell";
 
 export default async function AdminOverviewPage() {
@@ -9,6 +10,7 @@ export default async function AdminOverviewPage() {
   if (ctx.mode !== "tenant") return null;
   const tenant = await prisma.tenant.findUnique({ where: { slug: ctx.slug } });
   if (!tenant) return null;
+  enterContext({ mode: "tenant-admin", tenantId: tenant.id });
 
   const [userCount, clientCount, recent] = await Promise.all([
     prisma.tenantUser.count({ where: { tenantId: tenant.id } }),

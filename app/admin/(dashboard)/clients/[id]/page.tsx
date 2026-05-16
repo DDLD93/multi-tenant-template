@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { headers } from "next/headers";
 import { prisma } from "@/lib/db/client";
 import { resolveHost } from "@/lib/auth/context";
+import { enterContext } from "@/lib/db/tenant-context";
 import { PageHeader, Card } from "@/components/shell";
 import { ClientResetPasswordAction } from "./reset-action";
 
@@ -16,6 +17,7 @@ export default async function ClientDetailPage({
   if (ctx.mode !== "tenant") notFound();
   const tenant = await prisma.tenant.findUnique({ where: { slug: ctx.slug } });
   if (!tenant) notFound();
+  enterContext({ mode: "tenant-admin", tenantId: tenant.id });
   const client = await prisma.client.findUnique({ where: { id } });
   if (!client || client.tenantId !== tenant.id) notFound();
   return (

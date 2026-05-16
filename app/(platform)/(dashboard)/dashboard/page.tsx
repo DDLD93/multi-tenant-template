@@ -1,7 +1,9 @@
 import { prisma } from "@/lib/db/client";
+import { bindPlatformPageContext } from "@/lib/db/page-context";
 import { PageHeader, Card } from "@/components/shell";
 
 export default async function PlatformOverviewPage() {
+  bindPlatformPageContext();
   const [tenantCount, userCount, recentLogs] = await Promise.all([
     prisma.tenant.count(),
     prisma.platformUser.count(),

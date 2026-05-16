@@ -6,6 +6,7 @@ import { isValidSlug, RESERVED_SLUGS } from "@/lib/auth/context";
 import { ok } from "@/lib/api/respond";
 import { handleError, DomainError } from "@/lib/api/errors";
 import { requireCsrf } from "@/lib/api/csrf-guard";
+import { enforceRateLimit, RATE_PRESETS } from "@/lib/auth/rate-limit";
 
 const QUARANTINE_DAYS = 90;
 
@@ -34,6 +35,7 @@ export async function POST(request: Request) {
   try {
     await requireCsrf(request);
     const body = RegisterBody.parse(await request.json());
+    await enforceRateLimit(RATE_PRESETS.REGISTER, [body.email.toLowerCase(), body.slug]);
 
     const policy = validatePolicy(body.password);
     if (!policy.ok) throw new DomainError(400, "weak_password", policy.reason);

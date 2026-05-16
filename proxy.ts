@@ -34,6 +34,9 @@ export function proxy(request: NextRequest) {
 
   if (path.startsWith("/api/")) return NextResponse.next();
   if (path.startsWith("/_next/") || path === "/favicon.ico") return NextResponse.next();
+  // Maintenance screen must serve on any host without auth/rewrite so the
+  // lifecycle redirect (PRD §13) does not loop back to a login redirect.
+  if (path === "/maintenance") return NextResponse.next();
 
   const ctx = resolveHost(host);
 
