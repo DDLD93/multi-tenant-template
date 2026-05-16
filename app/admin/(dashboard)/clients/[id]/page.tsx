@@ -1,8 +1,7 @@
 import { notFound } from "next/navigation";
-import { headers } from "next/headers";
 import { prisma } from "@/lib/db/client";
-import { resolveHost } from "@/lib/auth/context";
-import { enterContext } from "@/lib/db/tenant-context";
+import { requireTenantPage } from "@/lib/auth/page-guards";
+import { PERMISSIONS } from "@/lib/auth/permissions";
 import { PageHeader, Card } from "@/components/shell";
 import { ClientResetPasswordAction } from "./reset-action";
 
@@ -12,14 +11,9 @@ export default async function ClientDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const h = await headers();
-  const ctx = resolveHost(h.get("host"));
-  if (ctx.mode !== "tenant") notFound();
-  const tenant = await prisma.tenant.findUnique({ where: { slug: ctx.slug } });
-  if (!tenant) notFound();
-  enterContext({ mode: "tenant-admin", tenantId: tenant.id });
+  const actor = await requireTenantPage(PERMISSIONS.TENANT_CLIENTS_READ.key);
   const client = await prisma.client.findUnique({ where: { id } });
-  if (!client || client.tenantId !== tenant.id) notFound();
+  if (!client || client.tenantId !== actor.tenantId) notFound();
   return (
     <div>
       <PageHeader title={`${client.firstName ?? ""} ${client.lastName ?? ""}`.trim() || client.email} />

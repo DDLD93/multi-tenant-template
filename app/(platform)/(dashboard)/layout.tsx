@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db/client";
-import { getSession, readSessionToken } from "@/lib/auth/session";
+import { requirePlatformPage } from "@/lib/auth/page-guards";
 import { AppShell, type NavItem } from "@/components/shell";
 
 const NAV: NavItem[] = [
@@ -13,13 +13,10 @@ const NAV: NavItem[] = [
 ];
 
 export default async function PlatformDashboardLayout({ children }: { children: React.ReactNode }) {
-  const token = await readSessionToken("PLATFORM");
-  const session = await getSession(token);
-  if (!session || session.userType !== "PLATFORM") redirect("/auth/login");
-  if (session.scope === "MUST_CHANGE_PASSWORD") redirect("/auth/change-password");
+  const actor = await requirePlatformPage();
 
   const user = await prisma.platformUser.findUnique({
-    where: { id: session.userId },
+    where: { id: actor.userId },
     select: { email: true, firstName: true, lastName: true },
   });
   if (!user) redirect("/auth/login");

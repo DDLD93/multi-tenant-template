@@ -1,10 +1,8 @@
 import { notFound } from "next/navigation";
-import { headers } from "next/headers";
 import { prisma } from "@/lib/db/client";
-import { resolveHost } from "@/lib/auth/context";
-import { enterContext } from "@/lib/db/tenant-context";
+import { requireTenantPage } from "@/lib/auth/page-guards";
 import { PageHeader, Card } from "@/components/shell";
-import { ALL_TENANT_PERMISSION_KEYS } from "@/lib/auth/permissions";
+import { ALL_TENANT_PERMISSION_KEYS, PERMISSIONS } from "@/lib/auth/permissions";
 import { RoleDetailEditor } from "@/app/(platform)/(dashboard)/role-templates/[id]/editor";
 
 export default async function TenantRoleDetailPage({
@@ -13,14 +11,11 @@ export default async function TenantRoleDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const h = await headers();
-  const ctx = resolveHost(h.get("host"));
-  if (ctx.mode !== "tenant") notFound();
-  const tenant = await prisma.tenant.findUnique({ where: { slug: ctx.slug } });
-  if (!tenant) notFound();
-  enterContext({ mode: "tenant-admin", tenantId: tenant.id });
+  const actor = await requireTenantPage(PERMISSIONS.TENANT_ROLES_WRITE.key);
   const role = await prisma.roleTemplate.findUnique({ where: { id } });
-  if (!role || role.scope !== "TENANT" || role.tenantId !== tenant.id) notFound();
+  if (!role || role.scope !== "TENANT" || role.tenantId !== actor.tenantId) {
+    notFound();
+  }
   return (
     <div>
       <PageHeader title={role.name} />

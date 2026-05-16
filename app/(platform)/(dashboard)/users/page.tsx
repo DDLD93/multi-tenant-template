@@ -1,8 +1,11 @@
 import { prisma } from "@/lib/db/client";
+import { requirePlatformPage } from "@/lib/auth/page-guards";
+import { PERMISSIONS } from "@/lib/auth/permissions";
 import { DataTableToolbar } from "@/components/data-table-toolbar";
 import { UsersTable } from "./table";
 
 export default async function PlatformUsersPage() {
+  await requirePlatformPage(PERMISSIONS.PLATFORM_USERS_READ.key);
   const users = await prisma.platformUser.findMany({
     orderBy: { createdAt: "desc" },
     take: 200,

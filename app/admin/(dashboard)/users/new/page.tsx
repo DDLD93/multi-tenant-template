@@ -1,19 +1,13 @@
-import { headers } from "next/headers";
 import { prisma } from "@/lib/db/client";
-import { resolveHost } from "@/lib/auth/context";
-import { enterContext } from "@/lib/db/tenant-context";
+import { requireTenantPage } from "@/lib/auth/page-guards";
+import { PERMISSIONS } from "@/lib/auth/permissions";
 import { PageHeader, Card } from "@/components/shell";
 import { InviteTenantUserForm } from "./invite-form";
 
 export default async function NewTenantUserPage() {
-  const h = await headers();
-  const ctx = resolveHost(h.get("host"));
-  if (ctx.mode !== "tenant") return null;
-  const tenant = await prisma.tenant.findUnique({ where: { slug: ctx.slug } });
-  if (!tenant) return null;
-  enterContext({ mode: "tenant-admin", tenantId: tenant.id });
+  const actor = await requireTenantPage(PERMISSIONS.TENANT_USERS_WRITE.key);
   const roles = await prisma.roleTemplate.findMany({
-    where: { scope: "TENANT", tenantId: tenant.id },
+    where: { scope: "TENANT", tenantId: actor.tenantId },
     orderBy: [{ isSystem: "desc" }, { name: "asc" }],
     select: { id: true, name: true },
   });

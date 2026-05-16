@@ -1,23 +1,13 @@
 import { redirect } from "next/navigation";
-import { headers } from "next/headers";
 import { prisma } from "@/lib/db/client";
-import { getSession, readSessionToken } from "@/lib/auth/session";
-import { resolveHost } from "@/lib/auth/context";
-import { enterContext } from "@/lib/db/tenant-context";
+import { requireClientPage } from "@/lib/auth/page-guards";
 import { PageHeader, Card } from "@/components/shell";
 import { LogoutButton } from "@/components/logout-button";
 
 export default async function ClientDashboardPage() {
-  const h = await headers();
-  const ctx = resolveHost(h.get("host"));
-  if (ctx.mode !== "tenant") redirect("/auth/login");
-  const token = await readSessionToken("CLIENT");
-  const session = await getSession(token);
-  if (!session || session.userType !== "CLIENT") redirect("/auth/login");
-  if (session.scope === "MUST_CHANGE_PASSWORD") redirect("/auth/change-password");
-  enterContext({ mode: "tenant-client", tenantId: session.tenantId });
-  const client = await prisma.client.findUnique({ where: { id: session.userId } });
-  const tenant = await prisma.tenant.findUnique({ where: { slug: ctx.slug } });
+  const actor = await requireClientPage();
+  const client = await prisma.client.findUnique({ where: { id: actor.clientId } });
+  const tenant = await prisma.tenant.findUnique({ where: { id: actor.tenantId } });
   if (!client || !tenant) redirect("/auth/login");
 
   return (

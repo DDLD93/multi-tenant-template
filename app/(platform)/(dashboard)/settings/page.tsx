@@ -1,6 +1,9 @@
 import { PageHeader, Card } from "@/components/shell";
+import { requirePlatformPage } from "@/lib/auth/page-guards";
+import { PERMISSIONS } from "@/lib/auth/permissions";
 
-export default function PlatformSettingsPage() {
+export default async function PlatformSettingsPage() {
+  await requirePlatformPage(PERMISSIONS.PLATFORM_SETTINGS_WRITE.key);
   return (
     <div>
       <PageHeader title="Platform settings" />

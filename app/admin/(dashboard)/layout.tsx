@@ -1,10 +1,7 @@
 import { redirect } from "next/navigation";
-import { headers } from "next/headers";
 import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/db/client";
-import { getSession, readSessionToken } from "@/lib/auth/session";
-import { resolveHost } from "@/lib/auth/context";
-import { enterContext } from "@/lib/db/tenant-context";
+import { requireTenantPage } from "@/lib/auth/page-guards";
 import { parseTenantSettings, type ModuleKey } from "@/lib/tenant/settings";
 import { AppShell, type NavItem } from "@/components/shell";
 
@@ -20,24 +17,16 @@ const NAV: Array<{ href: string; key: string; module: ModuleKey | null }> = [
 ];
 
 export default async function AdminDashboardLayout({ children }: { children: React.ReactNode }) {
-  const h = await headers();
-  const ctx = resolveHost(h.get("host"));
-  if (ctx.mode !== "tenant") redirect("/admin/auth/login");
+  const actor = await requireTenantPage();
 
-  const token = await readSessionToken("TENANT");
-  const session = await getSession(token);
-  if (!session || session.userType !== "TENANT") redirect("/admin/auth/login");
-  if (session.scope === "MUST_CHANGE_PASSWORD") redirect("/admin/auth/change-password");
-
-  enterContext({ mode: "tenant-admin", tenantId: session.tenantId });
   const user = await prisma.tenantUser.findUnique({
-    where: { id: session.userId },
-    select: { email: true, firstName: true, lastName: true, tenantId: true },
+    where: { id: actor.userId },
+    select: { email: true, firstName: true, lastName: true },
   });
   if (!user) redirect("/admin/auth/login");
 
   const tenant = await prisma.tenant.findUnique({
-    where: { id: user.tenantId },
+    where: { id: actor.tenantId },
     select: { name: true, status: true, settingsJson: true },
   });
   if (!tenant || tenant.status !== "ACTIVE") redirect("/maintenance");

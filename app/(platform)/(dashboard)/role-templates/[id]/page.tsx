@@ -1,8 +1,8 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db/client";
-import { bindPlatformPageContext } from "@/lib/db/page-context";
+import { requirePlatformPage } from "@/lib/auth/page-guards";
 import { PageHeader, Card } from "@/components/shell";
-import { ALL_PLATFORM_PERMISSION_KEYS } from "@/lib/auth/permissions";
+import { ALL_PLATFORM_PERMISSION_KEYS, PERMISSIONS } from "@/lib/auth/permissions";
 import { RoleDetailEditor } from "./editor";
 
 export default async function PlatformRoleDetailPage({
@@ -10,7 +10,7 @@ export default async function PlatformRoleDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  bindPlatformPageContext();
+  await requirePlatformPage(PERMISSIONS.PLATFORM_ROLES_READ.key);
   const { id } = await params;
   const role = await prisma.roleTemplate.findUnique({ where: { id } });
   if (!role || role.scope !== "PLATFORM") notFound();

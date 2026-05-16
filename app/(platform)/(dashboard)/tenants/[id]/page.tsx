@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db/client";
-import { bindPlatformPageContext } from "@/lib/db/page-context";
+import { requirePlatformPage } from "@/lib/auth/page-guards";
+import { PERMISSIONS } from "@/lib/auth/permissions";
 import { PageHeader, Card } from "@/components/shell";
 import { TenantActions } from "./actions";
 
@@ -9,7 +10,7 @@ export default async function TenantDrilldownPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  bindPlatformPageContext();
+  await requirePlatformPage(PERMISSIONS.PLATFORM_TENANTS_READ.key);
   const { id } = await params;
   const tenant = await prisma.tenant.findUnique({
     where: { id },

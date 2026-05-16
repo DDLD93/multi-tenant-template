@@ -1,19 +1,13 @@
-import { headers } from "next/headers";
 import { prisma } from "@/lib/db/client";
-import { resolveHost } from "@/lib/auth/context";
-import { enterContext } from "@/lib/db/tenant-context";
+import { requireTenantPage } from "@/lib/auth/page-guards";
+import { PERMISSIONS } from "@/lib/auth/permissions";
 import { DataTableToolbar } from "@/components/data-table-toolbar";
 import { ClientsTable } from "./table";
 
 export default async function ClientsPage() {
-  const h = await headers();
-  const ctx = resolveHost(h.get("host"));
-  if (ctx.mode !== "tenant") return null;
-  const tenant = await prisma.tenant.findUnique({ where: { slug: ctx.slug } });
-  if (!tenant) return null;
-  enterContext({ mode: "tenant-admin", tenantId: tenant.id });
+  const actor = await requireTenantPage(PERMISSIONS.TENANT_CLIENTS_READ.key);
   const clients = await prisma.client.findMany({
-    where: { tenantId: tenant.id },
+    where: { tenantId: actor.tenantId },
     orderBy: { createdAt: "desc" },
     take: 200,
     select: {
